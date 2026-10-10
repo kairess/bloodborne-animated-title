@@ -1,6 +1,6 @@
 # Bloodborne Animated Title
 
-Replaces Bloodborne's static title screen with a 1080p animated cinematic — a mod for the **bbport** PC port.
+Replaces Bloodborne's static title screen with a 1080p animated cinematic.
 
 [![preview](media/preview.gif)](https://youtu.be/8yH97IGCA3w)
 
@@ -13,19 +13,17 @@ and then holds on the classic title screen. The menu, the logo and the ™ text 
 ## Install
 
 1. Download `bloodborne-animated-title-v1.0.0.zip` from [Releases](../../releases).
-2. Extract it into your bbport `mods` folder so the files end up here:
-   ```
-   C:\bbport-windows\mods\bloodborne-animated-title\dvdroot_ps4\menu\title.tpf.dcx
-   C:\bbport-windows\mods\bloodborne-animated-title\dvdroot_ps4\menu\title.gfx
-   C:\bbport-windows\mods\bloodborne-animated-title\dvdroot_ps4\menu\title_dlc.gfx
-   C:\bbport-windows\mods\bloodborne-animated-title\dvdroot_ps4\menu\title_dlc_eu.gfx
-   ```
-3. Start the game. The launcher enables new mod folders automatically.
+2. Extract it. You get four files under `bloodborne-animated-title\dvdroot_ps4\menu\`:
+   `title.tpf.dcx`, `title.gfx`, `title_dlc.gfx`, `title_dlc_eu.gfx`.
+3. Install them in one of two ways:
+   - **With mod-folder support:** put the `bloodborne-animated-title` folder in your mods folder.
+   - **Without it:** back up the same four files in the game's `dvdroot_ps4\menu\` folder, then overwrite them.
+4. Start the game.
 
-To uninstall, delete the `bloodborne-animated-title` folder.
+To uninstall, delete the mod folder, or restore the backed-up files.
 
 **Notes**
-- The prebuilt files come from **CUSA03173 (EU) v1.01**. For another region or version, build from your own dump (see below).
+- The prebuilt files come from **CUSA03173 (EU) v1.09**. For another region or version, build from your own dump (see below).
 - The flipbook holds about 300 MB of textures (301 frames, 1920×1088 BC1). If your setup struggles, build a 720p version with `--size 1280x736` (about 135 MB).
 - Don't keep other mods that replace `menu/title*.gfx` or `menu/title.tpf.dcx` enabled at the same time.
 
@@ -58,13 +56,13 @@ Requires [uv](https://docs.astral.sh/uv/). It installs Python, numpy, Pillow and
 
 ```powershell
 # point to the game's original (unmodified) menu folder
-$env:BB_MENU = "C:\bbport-windows\GAME\CUSA03173\dvdroot_ps4\menu"
+$env:BB_MENU = "<game folder>\dvdroot_ps4\menu"
 
 # get the source clip: download q4_bloodmoon_1080p24.mp4 from Releases into vidu\q4_final_bloodmoon_1080.mp4
 # (or generate your own, see below)
 
 uv run make_reverse.py --clip vidu/q4_final_bloodmoon_1080.mp4 --name animated_title --size 1920x1088 --red-desat 0.35
-powershell -ExecutionPolicy Bypass -File install.ps1 animated_title
+powershell -ExecutionPolicy Bypass -File install.ps1 animated_title -Mods "<your mods folder>"
 ```
 
 Building takes a few minutes, mostly for motion interpolation and BC1 encoding. `build/animated_title/preview_30fps.mp4` shows exactly what will play.
@@ -90,7 +88,7 @@ uv run fal.py poll                           # downloads vidu/<name>.mp4
 | `make_intro_loop.py`, `make_poc.py` | GFX patching helpers and the original proof-of-concept builds |
 | `vidu.py`, `fal.py` | Vidu / fal.ai API clients (keys from `.vidu_key` / `.fal_key` or env vars) |
 | `sheet.py` | contact sheet + cut detection for generated clips |
-| `install.ps1` | copies a build into `mods\bloodborne-animated-title` |
+| `install.ps1` | copies a build into `<mods>\bloodborne-animated-title` |
 
 ## Credits
 

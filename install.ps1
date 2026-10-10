@@ -1,8 +1,7 @@
-# Installs a build from build\<Variant> as mods\bloodborne-animated-title (replacing any previous copy), or removes it.
-#   powershell -ExecutionPolicy Bypass -File install.ps1 animated_title
-#   powershell -ExecutionPolicy Bypass -File install.ps1 -Remove
-#   powershell -ExecutionPolicy Bypass -File install.ps1 animated_title -Mods D:\bbport\mods
-param([string]$Variant = 'animated_title', [string]$Mods = 'C:\bbport-windows\mods', [switch]$Remove)
+# Installs a build from build\<Variant> as <Mods>\bloodborne-animated-title (replacing any previous copy), or removes it.
+#   powershell -ExecutionPolicy Bypass -File install.ps1 animated_title -Mods D:\Games\mods
+#   powershell -ExecutionPolicy Bypass -File install.ps1 -Mods D:\Games\mods -Remove
+param([string]$Variant = 'animated_title', [Parameter(Mandatory = $true)][string]$Mods, [switch]$Remove)
 
 $dest = Join-Path $Mods 'bloodborne-animated-title'
 if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
