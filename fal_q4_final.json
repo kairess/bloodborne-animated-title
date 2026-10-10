@@ -1,0 +1,11 @@
+[
+  {
+    "name": "q4_final_bloodmoon_1080",
+    "endpoint": "fal-ai/vidu/q4/image-to-video",
+    "image": "vidu/ref_title.png",
+    "prompt": "One single continuous cinematic shot. No cuts, no scene changes, no camera switching, no new text. Dark gothic horror film, Victorian city of Yharnam at night, photorealistic, anamorphic film look, subtle film grain, volumetric fog, deep shadows, wet reflective cobblestones.\n\n0-3 seconds: the camera is perfectly still. The large white title letters 'Bloodborne' begin to bleed: dark crimson blood seeps out of the cracks of every letter, then the letters crumble into fine blood-red ash and glowing embers that a cold wind carries away to the right, until the title has completely vanished into the darkness and the street is clear.\n\n3-7 seconds: the wind grows stronger and rain begins to fall, thin silver streaks catching the light. Far down the street behind the hunter, a distant flash of lightning briefly silhouettes the tall gothic cathedral spires. The pale cold moonlight glowing in the fog at the end of the street slowly turns a deep blood red, as if a blood moon is rising, staining the mist crimson.\n\n7-10 seconds: the camera makes a very slow, smooth, low dolly forward toward the hunter, then settles and holds. The hunter stands his ground with his back to the camera and never turns around: his tattered long coat and cape billow in the wind, his shoulders rise and fall with a slow heavy breath that leaves a faint white mist, and blood drips slowly from the serrated saw cleaver in his right hand onto the wet stones. Final image: the lone hunter silhouetted against the crimson fog, rain falling, coat moving in the wind.\n\nKeep the hunter exactly as in the image: tricorn hat with feathers, high collar, long dark weathered coat, pistol in his left hand, serrated saw cleaver in his right hand. Sound: wind, rain, distant thunder, a far-off church bell.",
+    "duration": 10,
+    "resolution": "1080p",
+    "seed": 2015
+  }
+]

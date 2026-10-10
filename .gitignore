@@ -1,0 +1,11 @@
+# API keys
+.vidu_key
+.fal_key
+
+# generated / game-derived data (build it from your own dump)
+build/
+vidu/
+__pycache__/
+*.dds
+*.tpf
+*.dcx
