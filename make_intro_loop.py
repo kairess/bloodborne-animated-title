@@ -44,9 +44,43 @@ def hide_placement_by_name(g, name):
     return False
 
 
-def patch_gfx_intro_loop(raw, bg_export, intro_specs, loop_specs, fill, scale, hide_tm=True, loop_order=None):
-    """loop_order: optional play order of loop_specs indices (repeats allowed, e.g. a ping-pong)."""
+def find_placement_by_name(g, name):
+    for t in g.tags:
+        if t.code == gfx.TAG_DEFINESPRITE:
+            for c in t.children:
+                if c.code == gfx.TAG_PLACEOBJECT2 and c.body[0] & 0x20 and name.encode() + b"\0" in c.body:
+                    return t, c
+    return None, None
+
+
+def extend_with_reveal(sprite, depth, matrix, at, total):
+    """Give a one-frame sprite a `total`-frame timeline in which the (already hidden) object at `depth` is moved
+    back to `matrix` on frame `at`. The instance itself is never recreated, so text the game filled into it at
+    load time (localized StaticRegionText) survives — a freshly placed copy would show its placeholder."""
+    kids = [c for c in sprite.children if c.code != gfx.TAG_END]  # frame 0 incl. its ShowFrame
+    for k in range(1, total):
+        if k == at:
+            kids.append(gfx.Tag(gfx.TAG_PLACEOBJECT2, bytes([0x05]) + depth + matrix))  # move + matrix, same instance
+        kids.append(gfx.Tag(gfx.TAG_SHOWFRAME, b""))
+    kids.append(gfx.Tag(gfx.TAG_END, b""))
+    sprite.children = kids
+    sprite.sprite_hdr = sprite.sprite_hdr[:2] + struct.pack("<H", total)
+
+
+def patch_gfx_intro_loop(raw, bg_export, intro_specs, loop_specs, fill, scale, hide_tm=True, loop_order=None, tm_at=None):
+    """loop_order: optional play order of loop_specs indices (repeats allowed, e.g. a ping-pong).
+    tm_at: frame index on which the TM text appears; until then it sits off-stage (same instance throughout)."""
     g = gfx.Gfx(raw)
+    tm_sprite = tm_reveal = None
+    if tm_at is not None:
+        tm_sprite, orig = find_placement_by_name(g, TM_TEXT)
+        assert orig is not None, "TM text placement not found"
+        _, end = gfx.read_matrix(orig.body, 5)
+        tm_reveal = (orig.body[1:3], orig.body[5:end])  # depth, original matrix bytes
+        assert sum(c.code == gfx.TAG_SHOWFRAME for c in tm_sprite.children) == 1, "expected a single-frame sprite"
+        hide_tm = True
+    if hide_tm:  # before any new tags exist, so only the original placement can match
+        assert hide_placement_by_name(g, TM_TEXT), "TM text placement not found"
     bg_id = next(cid for cid, n in g.external_images().items() if n == bg_export)
     shape_idx, _ = g.find_shape_using_bitmap(bg_id)
     shape_tag = g.tags[shape_idx]
@@ -84,8 +118,9 @@ def patch_gfx_intro_loop(raw, bg_export, intro_specs, loop_specs, fill, scale, h
     g.tags[shape_idx + 1:shape_idx + 1] = new_tags
     place = sprite.children[place_idx]
     sprite.children[place_idx] = gfx.Tag(place.code, place.body[:3] + struct.pack("<H", outer) + place.body[5:])
-    if hide_tm:
-        assert hide_placement_by_name(g, TM_TEXT), "TM text placement not found"
+    if tm_reveal:
+        # the TM's sprite runs in step with the outer sprite (both start on the same frame)
+        extend_with_reveal(tm_sprite, *tm_reveal, tm_at, total)
     return g.build()
 
 

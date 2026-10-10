@@ -49,18 +49,28 @@ def main():
     ap.add_argument("--budget-mb", type=float, default=400)
     ap.add_argument("--red-desat", type=float, default=0, help="0..1: how much to desaturate the red title/ash")
     ap.add_argument("--red-until", type=float, default=4.2, help="clip time (s, forward) after which reds are left alone")
+    ap.add_argument("--tm", choices=["last", "keep", "hide"], default="last",
+                    help="the (TM) text next to the logo: show it only on the final frame (default), always, or never")
     ap.add_argument("--preview-only", action="store_true")
+    ap.add_argument("--gfx-only", action="store_true", help="rewrite only the .gfx files of an existing build (keeps its title.tpf.dcx)")
     args = ap.parse_args()
 
     w, h = map(int, args.size.lower().split("x"))
     assert w % 32 == 0 and h % 32 == 0
     vis_h = round(w * 1080 / 1920)
+    build = HERE / "build" / args.name
+    out = build / "dvdroot_ps4" / "menu"
+    if args.gfx_only:
+        tpf = Tpf.parse(dcx_read((out / "title.tpf.dcx").read_bytes()))
+        specs = [(t.name, t.w, t.h) for t in tpf.textures if t.name.startswith("MENU_TitleI_")]
+        write_gfx(out, specs, args.tm)
+        print(f"rewrote gfx for {len(specs)} frames in {out} (tm={args.tm})")
+        return
     _, _, fps = vt.probe(args.clip)
     f = vt.read_native(args.clip, w, vis_h)
     if args.red_desat:
         orig = f
         f = soften_reds(f, fps, args.red_desat, args.red_until)
-        build = HERE / "build" / args.name
         build.mkdir(parents=True, exist_ok=True)
         # before/after of the title part (forward time), top = original, bottom = softened
         n = round((args.red_until + 0.5) * fps)
@@ -74,7 +84,6 @@ def main():
     if mb > args.budget_mb:
         raise SystemExit(f"over budget {args.budget_mb} MB")
 
-    build = HERE / "build" / args.name
     build.mkdir(parents=True, exist_ok=True)
     vt.write_mp4(f, GFX_FPS, build / "preview_30fps.mp4")
     if args.preview_only:
@@ -88,15 +97,21 @@ def main():
         tpf.textures.append(Texture(name, swizzle(bc1.encode(rgb), w, h, 8), w, h, DXGI_BC1))
         specs.append((name, w, h))
     del f
-    scale = int(round(20 * 65536 * 1920 / w))
-    fill = 0x42 if w == 1920 else 0x41
-    out = build / "dvdroot_ps4" / "menu"
     out.mkdir(parents=True, exist_ok=True)
     raw = tpf.build()
     (out / "title.tpf.dcx").write_bytes(dcx_write(raw, 6))
-    for gname, bg in BG_NAMES.items():
-        (out / gname).write_bytes(patch_gfx_intro_loop((MENU / gname).read_bytes(), bg, specs, [], fill, scale, hide_tm=False))
+    write_gfx(out, specs, args.tm)
     print(f"wrote {out} (title.tpf {len(raw) / 2**20:.1f} MB raw), preview {build / 'preview_30fps.mp4'}")
+
+
+def write_gfx(out, specs, tm):
+    w = specs[0][1]
+    scale = int(round(20 * 65536 * 1920 / w))
+    fill = 0x42 if w == 1920 else 0x41
+    # "last": the TM text is re-placed (same character and instance name) on the final frame, where the logo is whole
+    opts = {"last": dict(tm_at=len(specs) - 1), "keep": dict(hide_tm=False), "hide": dict(hide_tm=True)}[tm]
+    for gname, bg in BG_NAMES.items():
+        (out / gname).write_bytes(patch_gfx_intro_loop((MENU / gname).read_bytes(), bg, specs, [], fill, scale, **opts))
 
 
 if __name__ == "__main__":

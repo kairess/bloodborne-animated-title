@@ -8,11 +8,12 @@ Replaces Bloodborne's static title screen with a 1080p animated cinematic.
 
 The title screen opens on the Hunter under a blood moon. Lightning flashes, the red light fades into
 the cold Yharnam night, and blood and ash gather into the Bloodborne logo. The 10-second clip plays once
-and then holds on the classic title screen. The menu, the logo and the ™ text layers are untouched.
+and then holds on the classic title screen. The ™ mark next to the logo appears only on the final frame,
+once the logo has formed. The menu and other text layers are untouched.
 
 ## Install
 
-1. Download `bloodborne-animated-title-v1.0.0.zip` from [Releases](../../releases).
+1. Download `bloodborne-animated-title-v1.0.1.zip` from [Releases](../../releases/latest).
 2. Extract it. You get four files under `bloodborne-animated-title\dvdroot_ps4\menu\`:
    `title.tpf.dcx`, `title.gfx`, `title_dlc.gfx`, `title_dlc_eu.gfx`.
 3. Install them in one of two ways:
@@ -47,6 +48,8 @@ This is a pure file mod: it needs no engine or port changes and no ActionScript.
    - Each frame is BC1-encoded, PS4-swizzled and appended to `title.tpf` as `MENU_TitleI_####`.
    - The GFX gets one `DefineExternalImage2` plus a bitmap shape per frame, and a single sprite that swaps the shape every timeline frame.
    - That sprite replaces the original background shape and holds on the last frame.
+
+6. **™ mark.** The ™ text field (`StaticRegionText_401100`) starts off-stage. On the final frame its sprite moves the *same instance* back into place. The game fills the localized text into that field only once, at load, so placing a fresh copy later would show its placeholder text ("TradeMark").
 
 Lesson learned: a *nested* self-looping sprite (an intro followed by a loop clip) did not animate in-game. A single flat sprite timeline works.
 
