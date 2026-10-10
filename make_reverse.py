@@ -51,6 +51,8 @@ def main():
     ap.add_argument("--red-until", type=float, default=4.2, help="clip time (s, forward) after which reds are left alone")
     ap.add_argument("--tm", choices=["last", "keep", "hide"], default="last",
                     help="the (TM) text next to the logo: show it only on the final frame (default), always, or never")
+    ap.add_argument("--menu-fade", type=float, default=1.0,
+                    help="seconds over which the menu (CommandList) fades in once the clip ends; 0 = always visible")
     ap.add_argument("--preview-only", action="store_true")
     ap.add_argument("--gfx-only", action="store_true", help="rewrite only the .gfx files of an existing build (keeps its title.tpf.dcx)")
     args = ap.parse_args()
@@ -63,8 +65,8 @@ def main():
     if args.gfx_only:
         tpf = Tpf.parse(dcx_read((out / "title.tpf.dcx").read_bytes()))
         specs = [(t.name, t.w, t.h) for t in tpf.textures if t.name.startswith("MENU_TitleI_")]
-        write_gfx(out, specs, args.tm)
-        print(f"rewrote gfx for {len(specs)} frames in {out} (tm={args.tm})")
+        write_gfx(out, specs, args.tm, args.menu_fade)
+        print(f"rewrote gfx for {len(specs)} frames in {out} (tm={args.tm}, menu fade {args.menu_fade}s)")
         return
     _, _, fps = vt.probe(args.clip)
     f = vt.read_native(args.clip, w, vis_h)
@@ -100,16 +102,23 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     raw = tpf.build()
     (out / "title.tpf.dcx").write_bytes(dcx_write(raw, 6))
-    write_gfx(out, specs, args.tm)
+    write_gfx(out, specs, args.tm, args.menu_fade)
     print(f"wrote {out} (title.tpf {len(raw) / 2**20:.1f} MB raw), preview {build / 'preview_30fps.mp4'}")
 
 
-def write_gfx(out, specs, tm):
+def write_gfx(out, specs, tm, menu_fade=0.0):
     w = specs[0][1]
     scale = int(round(20 * 65536 * 1920 / w))
     fill = 0x42 if w == 1920 else 0x41
-    # "last": the TM text is re-placed (same character and instance name) on the final frame, where the logo is whole
-    opts = {"last": dict(tm_at=len(specs) - 1), "keep": dict(hide_tm=False), "hide": dict(hide_tm=True)}[tm]
+    last = len(specs) - 1
+    # "last": the TM text is moved on-stage on the final frame, where the logo is whole
+    opts = {"last": dict(tm_at=last), "keep": dict(hide_tm=False), "hide": dict(hide_tm=True)}[tm]
+    if menu_fade > 0:
+        # the game drives CommandList / Item_* / Cursor from code (timeline moves on them are ignored), so fade the
+        # parts inside them that it leaves alone: the menu-item plate and label (sprite 31), the cursor graphic
+        # inside the blinking cursor (sprite 29, wrapped by the blink sprite 30), and the copyright line
+        n = max(1, round(menu_fade * GFX_FPS))
+        opts["fade_in"] = [((31, 1), last, n), ((31, 3), last, n), ((29, 2), last, n), ("StaticRegionText_401001", last, n)]
     for gname, bg in BG_NAMES.items():
         (out / gname).write_bytes(patch_gfx_intro_loop((MENU / gname).read_bytes(), bg, specs, [], fill, scale, **opts))
 

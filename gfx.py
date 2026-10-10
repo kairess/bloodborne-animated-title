@@ -175,6 +175,16 @@ def write_matrix(sx, sy, tx=0, ty=0):
     return bw.bytes()
 
 
+def write_cxform_alpha(alpha):
+    """CXFORMWITHALPHA that only scales alpha (256 = opaque), as used by PlaceObject2."""
+    bw = BitWriter()
+    bw.ub(0, 1); bw.ub(1, 1)  # no add terms, mult terms
+    n = sbits(256, alpha); bw.ub(n, 4)
+    for v in (256, 256, 256, alpha):
+        bw.sb(v, n)
+    return bw.bytes()
+
+
 def shape_bitmap_fill(body):
     """For a single-fill bitmap shape: locate the fill style and the bytes around it."""
     p = 2

@@ -53,24 +53,62 @@ def find_placement_by_name(g, name):
     return None, None
 
 
-def extend_with_reveal(sprite, depth, matrix, at, total):
-    """Give a one-frame sprite a `total`-frame timeline in which the (already hidden) object at `depth` is moved
-    back to `matrix` on frame `at`. The instance itself is never recreated, so text the game filled into it at
-    load time (localized StaticRegionText) survives — a freshly placed copy would show its placeholder."""
+def extend_timeline(sprite, events, total):
+    """Give a one-frame sprite a `total`-frame timeline; events = {frame: [tags]} added on those frames.
+    Objects placed on frame 0 are only ever *moved* afterwards, never recreated, so whatever the game filled into
+    them at load time (localized text, menu items) survives."""
+    assert sum(c.code == gfx.TAG_SHOWFRAME for c in sprite.children) == 1, "expected a single-frame sprite"
     kids = [c for c in sprite.children if c.code != gfx.TAG_END]  # frame 0 incl. its ShowFrame
     for k in range(1, total):
-        if k == at:
-            kids.append(gfx.Tag(gfx.TAG_PLACEOBJECT2, bytes([0x05]) + depth + matrix))  # move + matrix, same instance
+        kids += events.get(k, [])
         kids.append(gfx.Tag(gfx.TAG_SHOWFRAME, b""))
     kids.append(gfx.Tag(gfx.TAG_END, b""))
     sprite.children = kids
     sprite.sprite_hdr = sprite.sprite_hdr[:2] + struct.pack("<H", total)
 
 
-def patch_gfx_intro_loop(raw, bg_export, intro_specs, loop_specs, fill, scale, hide_tm=True, loop_order=None, tm_at=None):
+def find_placement_at(g, sprite_id, depth):
+    for t in g.tags:
+        if t.code == gfx.TAG_DEFINESPRITE and struct.unpack_from("<H", t.sprite_hdr)[0] == sprite_id:
+            for c in t.children:
+                if c.code == gfx.TAG_SHOWFRAME:
+                    break
+                d = 1 if c.code == gfx.TAG_PLACEOBJECT2 else 2  # PlaceObject3 has a second flags byte
+                if c.code in (gfx.TAG_PLACEOBJECT2, gfx.TAG_PLACEOBJECT3) and struct.unpack_from("<H", c.body, d)[0] == depth:
+                    return t, c
+    return None, None
+
+
+def fade_in_events(g, target, start, frames):
+    """Make a placement start fully transparent and fade it in over `frames` frames from `start`.
+    target: an instance name, or (sprite id, depth) for unnamed objects. Returns (sprite, events) for
+    extend_timeline. Only works on objects the game never repositions/hides from code: once the game touches
+    an object's display properties, Scaleform stops applying timeline moves to it."""
+    sprite, place = find_placement_at(g, *target) if isinstance(target, tuple) else find_placement_by_name(g, target)
+    assert place is not None, f"{target} placement not found"
+    po3 = place.code == gfx.TAG_PLACEOBJECT3
+    flags = place.body[0]
+    assert flags & 0x02 and flags & 0x04 and not flags & 0x08, "expected a character, a matrix and no colour transform"
+    assert not (po3 and place.body[1] & 0x0C), "PlaceObject3 class names are not handled"
+    hdr = 2 if po3 else 1
+    depth = place.body[hdr:hdr + 2]
+    _, end = gfx.read_matrix(place.body, hdr + 4)
+    place.body = bytes([flags | 0x08]) + place.body[1:end] + gfx.write_cxform_alpha(0) + place.body[end:]
+    events = {}
+    for k in range(1, frames + 1):
+        t = k / frames
+        a = round(256 * t * t * (3 - 2 * t))  # smoothstep
+        events.setdefault(start + k - 1, []).append(gfx.Tag(gfx.TAG_PLACEOBJECT2, bytes([0x09]) + depth + gfx.write_cxform_alpha(a)))
+    return sprite, events
+
+
+def patch_gfx_intro_loop(raw, bg_export, intro_specs, loop_specs, fill, scale, hide_tm=True, loop_order=None, tm_at=None,
+                         fade_in=()):
     """loop_order: optional play order of loop_specs indices (repeats allowed, e.g. a ping-pong).
-    tm_at: frame index on which the TM text appears; until then it sits off-stage (same instance throughout)."""
+    tm_at: frame index on which the TM text appears; until then it sits off-stage (same instance throughout).
+    fade_in: (instance name, start frame, length in frames) entries faded in from transparent, e.g. the CommandList."""
     g = gfx.Gfx(raw)
+    fades = [fade_in_events(g, name, start, n) for name, start, n in fade_in]
     tm_sprite = tm_reveal = None
     if tm_at is not None:
         tm_sprite, orig = find_placement_by_name(g, TM_TEXT)
@@ -118,9 +156,18 @@ def patch_gfx_intro_loop(raw, bg_export, intro_specs, loop_specs, fill, scale, h
     g.tags[shape_idx + 1:shape_idx + 1] = new_tags
     place = sprite.children[place_idx]
     sprite.children[place_idx] = gfx.Tag(place.code, place.body[:3] + struct.pack("<H", outer) + place.body[5:])
+    # sprites that get a timeline run in step with the outer sprite (all are created on the same frame)
+    timelines = {}
     if tm_reveal:
-        # the TM's sprite runs in step with the outer sprite (both start on the same frame)
-        extend_with_reveal(tm_sprite, *tm_reveal, tm_at, total)
+        depth, matrix = tm_reveal
+        timelines.setdefault(id(tm_sprite), (tm_sprite, {}))[1].setdefault(tm_at, []).append(
+            gfx.Tag(gfx.TAG_PLACEOBJECT2, bytes([0x05]) + depth + matrix))  # move + matrix, same instance
+    for fsprite, events in fades:
+        ev = timelines.setdefault(id(fsprite), (fsprite, {}))[1]
+        for k, tags in events.items():
+            ev.setdefault(k, []).extend(tags)
+    for s, ev in timelines.values():
+        extend_timeline(s, ev, total)
     return g.build()
 
 
