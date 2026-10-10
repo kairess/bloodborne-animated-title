@@ -2,9 +2,9 @@
 
 Replaces Bloodborne's static title screen with a 1080p animated cinematic — a mod for the **bbport** PC port.
 
-![preview](media/preview.jpg)
+[![preview](media/preview.gif)](https://youtu.be/8yH97IGCA3w)
 
-▶ **[Watch the preview (1080p, 30 fps)](media/preview_1080p30.mp4)**
+▶ **[Watch on YouTube](https://youtu.be/8yH97IGCA3w)** · [download the 1080p 30 fps preview](media/preview_1080p30.mp4)
 
 The title screen opens on the Hunter under a blood moon. Lightning flashes, the red light fades into
 the cold Yharnam night, and blood and ash gather into the Bloodborne logo. The 10-second clip plays once
